@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Stock Analyzer{% endblock %}</title>
+    
+    <!-- CDNs: Chart.js & FontAwesome Icons -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Custom Style Sheet -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+    <!-- Main Container -->
+    <div class="app-container">
+        
+        <!-- Header / Navigation (Render only if logged in) -->
+        {% if session.get('user_id') %}
+        <nav class="navbar">
+            <div class="nav-brand">
+                <span class="nav-brand-icon"><i class="fa-solid fa-chart-line"></i></span>
+                Stock Analyzer
+            </div>
+            
+            <ul class="nav-links">
+                <li>
+                    <a href="{{ url_for('dashboard') }}" class="nav-link {% if request.path == url_for('dashboard') %}active{% endif %}">
+                        <i class="fa-solid fa-gauge-high"></i> Dashboard
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('market') }}" class="nav-link {% if request.path == url_for('market') %}active{% endif %}">
+                        <i class="fa-solid fa-chart-area"></i> Market Analysis
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('transactions') }}" class="nav-link {% if request.path == url_for('transactions') %}active{% endif %}">
+                        <i class="fa-solid fa-list-check"></i> Trade Log
+                    </a>
+                </li>
+            </ul>
+            
+            <div class="nav-user">
+                <span class="user-cash" id="nav-cash-display">
+                    <i class="fa-solid fa-wallet"></i> Loading Cash...
+                </span>
+                <a href="{{ url_for('logout') }}" class="btn-logout">
+                    <i class="fa-solid fa-right-from-bracket"></i> Logout
+                </a>
+            </div>
+        </nav>
+        
+        <!-- Live Ticker Bar -->
+        <div class="ticker-wrap">
+            <div class="ticker-content" id="ticker-content">
+                <!-- Dynamically populated via JS -->
+                <div class="ticker-item">Loading live market prices... <span class="pulse-dot"></span></div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Flash Alert Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="flash-msg {{ category }}">
+                            {% if category == 'success' %}
+                                <i class="fa-solid fa-circle-check"></i>
+                            {% elif category == 'error' %}
+                                <i class="fa-solid fa-circle-xmark"></i>
+                            {% else %}
+                                <i class="fa-solid fa-circle-info"></i>
+                            {% endif %}
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <!-- Child Page Content -->
+        {% block content %}{% endblock %}
+
+    </div>
+
+    <!-- Core App JS -->
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+    
+    {% if session.get('user_id') %}
+    <script>
+        // Update user wallet balance on navigation bar dynamically
+        function updateNavWallet() {
+            fetch('/api/portfolio')
+                .then(r => r.json())
+                .then(data => {
+                    const el = document.getElementById('nav-cash-display');
+                    if (el) {
+                        el.innerHTML = `<i class="fa-solid fa-wallet"></i> ${formatCurrency(data.cash_balance)}`;
+                    }
+                })
+                .catch(err => console.error('Error loading nav cash:', err));
+        }
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            updateNavWallet();
+            // Listen for any successful transactions to update wallet
+            document.addEventListener('transactionCompleted', updateNavWallet);
+        });
+    </script>
+    {% endif %}
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

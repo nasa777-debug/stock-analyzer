@@ -1,0 +1,180 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard | Stock Analyzer{% endblock %}
+
+{% block content %}
+<!-- Dashboard Content -->
+<div class="dashboard-header" style="margin-bottom: 25px;">
+    <h2 style="font-size: 28px; font-weight: 700; color: #fff;">Welcome back, {{ username }}!</h2>
+    <p style="color: var(--color-text-muted);">Monitor your simulated investments and review your overall asset allocation.</p>
+</div>
+
+<!-- Core Summary Cards -->
+<div class="dashboard-grid">
+    <div class="summary-card">
+        <div class="card-label">Net Worth</div>
+        <div class="card-value" id="net-worth-display">$100,000.00</div>
+        <div class="card-trend" id="net-worth-trend">
+            <span class="trend-up"><i class="fa-solid fa-circle-notch fa-spin"></i> Initializing</span>
+        </div>
+    </div>
+    
+    <div class="summary-card">
+        <div class="card-label">Holdings Value</div>
+        <div class="card-value" id="holdings-value-display">$0.00</div>
+        <p style="font-size: 13px; color: var(--color-text-muted);">Current equity in market</p>
+    </div>
+    
+    <div class="summary-card">
+        <div class="card-label">Cash Balance</div>
+        <div class="card-value" id="cash-balance-display">$100,000.00</div>
+        <p style="font-size: 13px; color: var(--color-text-muted);">Available for trading</p>
+    </div>
+    
+    <div class="summary-card">
+        <div class="card-label">Total Return</div>
+        <div class="card-value" id="total-return-display">$0.00</div>
+        <div class="card-trend" id="total-return-trend">
+            <span class="trend-up">+0.00%</span>
+        </div>
+    </div>
+</div>
+
+<!-- Secondary Details Grid -->
+<div class="details-grid">
+    <!-- Holdings Panel -->
+    <div class="panel-card">
+        <div class="panel-header">
+            <h3 class="panel-title"><i class="fa-solid fa-briefcase"></i> Current Portfolio Holdings</h3>
+            <span class="pulse-dot"></span>
+        </div>
+        
+        <div class="table-responsive">
+            <table class="custom-table">
+                <thead>
+                    <tr>
+                        <th>Asset</th>
+                        <th>Shares Held</th>
+                        <th>Avg Cost</th>
+                        <th>Current Price</th>
+                        <th>Total Cost</th>
+                        <th>Market Value</th>
+                        <th>Profit / Loss</th>
+                        <th style="text-align: right;">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="holdings-table-body">
+                    <!-- Dynamically loaded -->
+                    <tr>
+                        <td colspan="8" class="empty-placeholder">
+                            <i class="fa-solid fa-spinner fa-spin"></i> Loading holdings...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- Asset Allocation Doughnut Chart -->
+    <div class="panel-card">
+        <div class="panel-header">
+            <h3 class="panel-title"><i class="fa-solid fa-chart-pie"></i> Asset Allocation</h3>
+        </div>
+        <div class="chart-container-pie">
+            <canvas id="allocationChart"></canvas>
+        </div>
+        <div id="allocation-legend-fallback" style="display:none;" class="empty-placeholder">
+            <i class="fa-solid fa-vault"></i> No investments yet
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Fetch and render portfolio metrics, holdings table, and allocation chart
+    function loadPortfolioData() {
+        fetch('/api/portfolio')
+            .then(res => res.json())
+            .then(data => {
+                // Update Cards
+                document.getElementById('net-worth-display').innerText = formatCurrency(data.net_worth);
+                document.getElementById('holdings-value-display').innerText = formatCurrency(data.total_holdings_value);
+                document.getElementById('cash-balance-display').innerText = formatCurrency(data.cash_balance);
+                document.getElementById('total-return-display').innerText = formatCurrency(data.total_profit_loss);
+                
+                // Update Net Worth Trend
+                const nwTrend = document.getElementById('net-worth-trend');
+                const isProfit = data.total_profit_loss >= 0;
+                const trendClass = isProfit ? 'trend-up' : 'trend-down';
+                const trendIcon = isProfit ? '<i class="fa-solid fa-arrow-trend-up"></i>' : '<i class="fa-solid fa-arrow-trend-down"></i>';
+                nwTrend.innerHTML = `<span class="${trendClass}">${trendIcon} ${formatPercent(data.total_profit_loss_pct)}</span>`;
+                
+                // Update Total Return Trend
+                const trTrend = document.getElementById('total-return-trend');
+                trTrend.innerHTML = `<span class="${trendClass}">${formatPercent(data.total_profit_loss_pct)}</span>`;
+                
+                // Update Holdings Table
+                const tbody = document.getElementById('holdings-table-body');
+                tbody.innerHTML = '';
+                
+                if (data.holdings.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="8" class="empty-placeholder">
+                                <i class="fa-solid fa-wallet" style="margin-right: 6px;"></i> You don't own any stocks yet. Go to <a href="/market" style="font-weight: 600; color: var(--primary);">Market Analysis</a> to start trading!
+                            </td>
+                        </tr>
+                    `;
+                    document.getElementById('allocationChart').style.display = 'none';
+                    document.getElementById('allocation-legend-fallback').style.display = 'block';
+                } else {
+                    document.getElementById('allocationChart').style.display = 'block';
+                    document.getElementById('allocation-legend-fallback').style.display = 'none';
+                    
+                    data.holdings.forEach(item => {
+                        const row = document.createElement('tr');
+                        
+                        const plClass = item.profit_loss >= 0 ? 'trend-up' : 'trend-down';
+                        const plSign = item.profit_loss >= 0 ? '+' : '';
+                        
+                        row.innerHTML = `
+                            <td>
+                                <div><strong style="color:#fff;">${item.ticker}</strong></div>
+                                <div style="font-size:11px; color:var(--color-text-muted);">${item.name}</div>
+                            </td>
+                            <td>${item.shares}</td>
+                            <td>${formatCurrency(item.average_price)}</td>
+                            <td>${formatCurrency(item.current_price)}</td>
+                            <td>${formatCurrency(item.total_cost)}</td>
+                            <td style="font-weight:600; color:#fff;">${formatCurrency(item.current_value)}</td>
+                            <td class="${plClass}" style="font-weight:600;">
+                                ${plSign}${formatCurrency(item.profit_loss)}
+                                <div style="font-size:11px;">(${formatPercent(item.profit_loss_pct)})</div>
+                            </td>
+                            <td style="text-align: right;">
+                                <a href="/market?symbol=${item.ticker}" class="btn-chart-opt active" style="padding: 6px 12px; font-size:12px; display:inline-block;">
+                                    Trade <i class="fa-solid fa-chevron-right" style="font-size:9px; margin-left:2px;"></i>
+                                </a>
+                            </td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                }
+                
+                // Draw chart
+                renderAllocationChart('allocationChart', data.allocation);
+            })
+            .catch(err => console.error('Error loading portfolio:', err));
+    }
+    
+    document.addEventListener('DOMContentLoaded', () => {
+        loadPortfolioData();
+        
+        // Listen to live pricesUpdated event from app.js poll to refresh dashboard
+        document.addEventListener('pricesUpdated', () => {
+            loadPortfolioData();
+        });
+    });
+</script>
+{% endblock %}
