@@ -1,2 +1,603 @@
-{% extends 'base.html' %}{% block title %}Trades | Stock Analyzer{% endblock %}
-{% block content %}<section class="page-hero reveal"><div><span class="section-kicker">PRACTICE JOURNAL</span><h1>Your <span class="gradient-text">trade history.</span></h1><p>Review the decisions you made inside the simulator.</p></div><a class="btn-primary" href="{{ url_for('market') }}"><i class="fa-solid fa-plus"></i> New practice trade</a></section><div class="panel glass reveal delay-1"><div class="search-box compact"><i class="fa-solid fa-magnifying-glass"></i><input id="tx-search" placeholder="Search ticker or action..." oninput="filterTx()"></div><div class="table-wrap"><table><thead><tr><th>Time</th><th>Asset</th><th>Action</th><th>Shares</th><th>Price</th><th>Total</th></tr></thead><tbody id="tx-body"><tr><td colspan="6" class="empty">Loading...</td></tr></tbody></table></div></div>{% endblock %}{% block scripts %}<script>let tx=[];function loadTx(){fetch('/api/transactions_list').then(r=>r.json()).then(d=>{tx=d;renderTx()})}function renderTx(){const q=document.getElementById('tx-search').value.toLowerCase();const b=document.getElementById('tx-body');const rows=tx.filter(x=>(x.ticker+x.action).toLowerCase().includes(q));b.innerHTML=rows.length?rows.map(x=>`<tr><td>${new Date(x.timestamp).toLocaleString()}</td><td><b>${x.ticker}</b></td><td><span class="action-badge ${x.action.toLowerCase()}">${x.action}</span></td><td>${x.shares.toFixed(4)}</td><td>${formatCurrency(x.price)}</td><td>${formatCurrency(x.total_value)}</td></tr>`).join(''):'<tr><td colspan="6" class="empty">No matching trades yet.</td></tr>'}function filterTx(){renderTx()}document.addEventListener('DOMContentLoaded',loadTx)</script>{% endblock %}
+{% extends 'base.html' %}
+
+{% block title %}Trades | Stock Analyzer{% endblock %}
+
+{% block content %}
+
+<section class="page-hero reveal">
+    <div>
+        <span class="section-kicker">PRACTICE JOURNAL</span>
+        <h1>Your <span class="gradient-text">trade history.</span></h1>
+        <p>Review the decisions you made inside the simulator.</p>
+    </div>
+
+    <button class="trade-button" onclick="openTradeModal()">
+        + New practice trade
+    </button>
+</section>
+
+<section class="trade-panel reveal">
+
+    <div class="search-box">
+        🔍
+        <input
+            type="text"
+            id="searchInput"
+            placeholder="Search ticker or action..."
+            onkeyup="filterTrades()"
+        >
+    </div>
+
+    <div class="table-wrapper">
+        <table id="tradeTable">
+            <thead>
+                <tr>
+                    <th>TIME</th>
+                    <th>ASSET</th>
+                    <th>ACTION</th>
+                    <th>SHARES</th>
+                    <th>PRICE</th>
+                    <th>TOTAL</th>
+                </tr>
+            </thead>
+
+            <tbody id="tradeBody">
+                {% for transaction in transactions %}
+                <tr>
+                    <td>{{ transaction.timestamp }}</td>
+                    <td><strong>{{ transaction.ticker }}</strong></td>
+
+                    <td>
+                        <span class="action {{ transaction.action|lower }}">
+                            {{ transaction.action }}
+                        </span>
+                    </td>
+
+                    <td>{{ "%.4f"|format(transaction.shares) }}</td>
+
+                    <td>${{ "%.2f"|format(transaction.price) }}</td>
+
+                    <td>${{ "%.2f"|format(transaction.total) }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" class="empty">
+                        No trades yet. Start your first practice trade.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+</section>
+
+
+<!-- TRADE MODAL -->
+
+<div id="tradeModal" class="modal">
+
+    <div class="modal-card">
+
+        <button class="close-button" onclick="closeTradeModal()">×</button>
+
+        <span class="section-kicker">PRACTICE TRADE</span>
+
+        <h2>Make a trade</h2>
+        <p class="modal-subtitle">
+            Simulate buying or selling a stock.
+        </p>
+
+        <div class="trade-tabs">
+
+            <button
+                id="buyTab"
+                class="trade-tab active"
+                onclick="setAction('BUY')">
+                BUY
+            </button>
+
+            <button
+                id="sellTab"
+                class="trade-tab"
+                onclick="setAction('SELL')">
+                SELL
+            </button>
+
+        </div>
+
+        <div class="form-group">
+
+            <label>Stock ticker</label>
+
+            <input
+                id="ticker"
+                type="text"
+                placeholder="Example: AAPL"
+                autocomplete="off"
+            >
+
+        </div>
+
+        <div class="form-group">
+
+            <label>Number of shares</label>
+
+            <input
+                id="shares"
+                type="number"
+                min="0.0001"
+                step="0.0001"
+                placeholder="Example: 5"
+            >
+
+        </div>
+
+        <div class="form-group">
+
+            <label>Price per share</label>
+
+            <input
+                id="price"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="Example: 180"
+            >
+
+        </div>
+
+        <div id="tradeError" class="trade-error"></div>
+
+        <button
+            id="submitTrade"
+            class="submit-trade"
+            onclick="submitTrade()">
+
+            BUY STOCK
+
+        </button>
+
+    </div>
+
+</div>
+
+
+<style>
+
+.page-hero {
+    display: flex;
+    justify-content: space-between;
+    align-items: end;
+    gap: 30px;
+    margin-bottom: 35px;
+}
+
+.page-hero h1 {
+    font-size: clamp(42px, 6vw, 72px);
+    margin: 8px 0;
+}
+
+.page-hero p {
+    color: #8d99ae;
+    font-size: 17px;
+}
+
+.gradient-text {
+    background: linear-gradient(90deg, #19d3ae, #60a5fa, #8b5cf6);
+    -webkit-background-clip: text;
+    color: transparent;
+}
+
+.trade-button {
+    border: none;
+    border-radius: 14px;
+    padding: 15px 24px;
+    background: #13c99a;
+    color: #04110d;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.trade-button:hover {
+    transform: translateY(-2px);
+    filter: brightness(1.1);
+}
+
+.trade-panel {
+    background: rgba(16, 25, 42, 0.72);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 22px;
+    padding: 22px;
+    overflow: hidden;
+}
+
+.search-box {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin-bottom: 20px;
+    color: #7d8aa3;
+}
+
+.search-box input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: white;
+    font-size: 16px;
+}
+
+.table-wrapper {
+    overflow-x: auto;
+}
+
+#tradeTable {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+#tradeTable th {
+    text-align: left;
+    color: #8290a8;
+    font-size: 12px;
+    padding: 12px;
+}
+
+#tradeTable td {
+    padding: 17px 12px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    color: #dbe4f2;
+}
+
+.action {
+    display: inline-block;
+    padding: 5px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.action.buy {
+    background: rgba(16,185,129,0.12);
+    color: #19d3ae;
+}
+
+.action.sell {
+    background: rgba(239,68,68,0.12);
+    color: #fb7185;
+}
+
+.empty {
+    text-align: center;
+    color: #7d8aa3;
+    padding: 35px !important;
+}
+
+
+/* MODAL */
+
+.modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(0,0,0,0.72);
+    backdrop-filter: blur(8px);
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.modal.show {
+    display: flex;
+}
+
+.modal-card {
+    position: relative;
+    width: min(500px, 100%);
+    background: #101827;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 24px;
+    padding: 32px;
+    box-shadow: 0 25px 80px rgba(0,0,0,0.5);
+    animation: modalIn 0.2s ease;
+}
+
+@keyframes modalIn {
+    from {
+        opacity: 0;
+        transform: translateY(15px) scale(0.98);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.modal-card h2 {
+    margin: 8px 0;
+    font-size: 32px;
+}
+
+.modal-subtitle {
+    color: #8491a8;
+    margin-bottom: 24px;
+}
+
+.close-button {
+    position: absolute;
+    right: 18px;
+    top: 15px;
+    background: transparent;
+    border: none;
+    color: #8d99ae;
+    font-size: 30px;
+    cursor: pointer;
+}
+
+.trade-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+}
+
+.trade-tab {
+    flex: 1;
+    padding: 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: #151f31;
+    color: #9aa6ba;
+    cursor: pointer;
+    font-weight: 700;
+}
+
+.trade-tab.active {
+    background: #13c99a;
+    color: #04110d;
+}
+
+.form-group {
+    margin-bottom: 17px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    color: #aab5c7;
+    font-size: 13px;
+}
+
+.form-group input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 14px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.09);
+    background: #0b1220;
+    color: white;
+    outline: none;
+    font-size: 15px;
+}
+
+.form-group input:focus {
+    border-color: #13c99a;
+}
+
+.submit-trade {
+    width: 100%;
+    padding: 15px;
+    border: none;
+    border-radius: 12px;
+    background: #13c99a;
+    color: #04110d;
+    font-size: 15px;
+    font-weight: 800;
+    cursor: pointer;
+    margin-top: 5px;
+}
+
+.submit-trade:hover {
+    filter: brightness(1.1);
+}
+
+.trade-error {
+    display: none;
+    background: rgba(239,68,68,0.12);
+    color: #fb7185;
+    padding: 12px;
+    border-radius: 10px;
+    margin-bottom: 12px;
+    font-size: 14px;
+}
+
+@media (max-width: 700px) {
+
+    .page-hero {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .modal-card {
+        padding: 24px;
+    }
+
+}
+
+</style>
+
+
+<script>
+
+let currentAction = "BUY";
+
+
+function openTradeModal() {
+
+    document.getElementById("tradeModal").classList.add("show");
+
+}
+
+
+function closeTradeModal() {
+
+    document.getElementById("tradeModal").classList.remove("show");
+
+}
+
+
+function setAction(action) {
+
+    currentAction = action;
+
+    document.getElementById("buyTab").classList.toggle(
+        "active",
+        action === "BUY"
+    );
+
+    document.getElementById("sellTab").classList.toggle(
+        "active",
+        action === "SELL"
+    );
+
+    document.getElementById("submitTrade").innerText =
+        action === "BUY"
+            ? "BUY STOCK"
+            : "SELL STOCK";
+
+    document.getElementById("tradeError").style.display = "none";
+}
+
+
+async function submitTrade() {
+
+    const ticker =
+        document.getElementById("ticker").value.trim().toUpperCase();
+
+    const shares =
+        parseFloat(document.getElementById("shares").value);
+
+    const price =
+        parseFloat(document.getElementById("price").value);
+
+    const error =
+        document.getElementById("tradeError");
+
+    error.style.display = "none";
+
+    if (!ticker) {
+        showError("Please enter a stock ticker.");
+        return;
+    }
+
+    if (!shares || shares <= 0) {
+        showError("Please enter a valid number of shares.");
+        return;
+    }
+
+    if (!price || price <= 0) {
+        showError("Please enter a valid price.");
+        return;
+    }
+
+    const endpoint =
+        currentAction === "BUY"
+            ? "/api/buy"
+            : "/api/sell";
+
+    try {
+
+        const response = await fetch(endpoint, {
+
+            method: "POST",
+
+            headers: {
+                "Content-Type": "application/json"
+            },
+
+            body: JSON.stringify({
+                ticker: ticker,
+                shares: shares,
+                price: price
+            })
+
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || data.error) {
+            showError(data.error || "Trade could not be completed.");
+            return;
+        }
+
+        closeTradeModal();
+
+        window.location.reload();
+
+    } catch (err) {
+
+        showError(
+            "Unable to contact the server. Please try again."
+        );
+
+    }
+
+}
+
+
+function showError(message) {
+
+    const error =
+        document.getElementById("tradeError");
+
+    error.innerText = message;
+
+    error.style.display = "block";
+
+}
+
+
+function filterTrades() {
+
+    const input =
+        document.getElementById("searchInput")
+            .value
+            .toLowerCase();
+
+    const rows =
+        document.querySelectorAll("#tradeBody tr");
+
+    rows.forEach(row => {
+
+        row.style.display =
+            row.innerText.toLowerCase().includes(input)
+                ? ""
+                : "none";
+
+    });
+
+}
+
+
+window.addEventListener("click", function(event) {
+
+    const modal =
+        document.getElementById("tradeModal");
+
+    if (event.target === modal) {
+        closeTradeModal();
+    }
+
+});
+
+</script>
+
+{% endblock %}
