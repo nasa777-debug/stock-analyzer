@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{% block title %}Stock Analyzer{% endblock %}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<div class="ambient ambient-a"></div><div class="ambient ambient-b"></div>
+<div class="app-shell">
+{% if session.get('user_id') %}
+<header class="topbar glass">
+  <a class="brand" href="{{ url_for('dashboard') }}"><span class="brand-mark"><i class="fa-solid fa-chart-line"></i></span><span>Stock<span class="brand-accent">Analyzer</span></span></a>
+  <nav class="nav-links">
+    <a href="{{ url_for('dashboard') }}" class="nav-link {% if request.path=='/dashboard' %}active{% endif %}"><i class="fa-solid fa-grid-2"></i>Overview</a>
+    <a href="{{ url_for('market') }}" class="nav-link {% if request.path=='/market' %}active{% endif %}"><i class="fa-solid fa-chart-candlestick"></i>Market</a>
+    <a href="{{ url_for('learn') }}" class="nav-link {% if request.path=='/learn' %}active{% endif %}"><i class="fa-solid fa-book-open"></i>Learn</a>
+    <a href="{{ url_for('agent') }}" class="nav-link {% if request.path=='/agent' %}active{% endif %}"><i class="fa-solid fa-sparkles"></i>Agent</a>
+    <a href="{{ url_for('transactions') }}" class="nav-link {% if request.path=='/transactions' %}active{% endif %}"><i class="fa-solid fa-clock-rotate-left"></i>Trades</a>
+  </nav>
+  <div class="top-actions"><span id="nav-cash-display" class="wallet-pill"><i class="fa-solid fa-wallet"></i> $100,000</span><a class="icon-btn" href="{{ url_for('logout') }}" title="Logout"><i class="fa-solid fa-arrow-right-from-bracket"></i></a></div>
+</header>
+<div class="ticker-bar glass"><div class="ticker-track" id="ticker-content"><span class="ticker-loading">Loading market pulse...</span></div></div>
+{% endif %}
+{% with messages=get_flashed_messages(with_categories=true) %}{% if messages %}<div class="toast-stack">{% for category,message in messages %}<div class="toast {{ category }}"><i class="fa-solid {% if category=='success' %}fa-circle-check{% elif category=='error' %}fa-circle-xmark{% else %}fa-circle-info{% endif %}"></i>{{ message }}</div>{% endfor %}</div>{% endif %}{% endwith %}
+<main class="page-wrap">{% block content %}{% endblock %}</main>
+</div>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body></html>
