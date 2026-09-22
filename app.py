@@ -308,6 +308,13 @@ def get_transactions():
     if not user: return jsonify({'error':'Unauthorized'}),401
     return jsonify([tx.to_dict() for tx in Transaction.query.filter_by(user_id=user.id).order_by(Transaction.timestamp.desc()).all()])
 
+@app.route("/trade")
+def trade():
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    return render_template("trade.html")
+    
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
