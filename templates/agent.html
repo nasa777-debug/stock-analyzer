@@ -1,2 +1,908 @@
-{% extends 'base.html' %}{% block title %}Learning Agent | Stock Analyzer{% endblock %}
-{% block content %}<section class="agent-layout reveal"><aside class="agent-sidebar glass"><span class="section-kicker">STOCK LEARNING AGENT</span><h1>Ask without the jargon.</h1><p>Use the agent to unpack stock terms, indicators and the simulated companies in this lab.</p><div class="suggestions"><button onclick="ask('Explain P/E ratio like I am a beginner')">What is P/E?</button><button onclick="ask('Explain RSI with a simple example')">Explain RSI</button><button onclick="ask('What does MACD mean?')">What is MACD?</button><button onclick="ask('Tell me about NVDA')">Tell me about NVDA</button><button onclick="ask('Why is diversification important?')">Why diversify?</button></div><div class="agent-note"><i class="fa-solid fa-circle-info"></i><span>Educational explanations only. The simulator uses generated prices and does not provide financial advice.</span></div></aside><section class="chat glass"><div class="chat-head"><div class="agent-avatar"><i class="fa-solid fa-sparkles"></i></div><div><b>Stock Analyzer Agent</b><small>Educational mode • ready</small></div><span class="status"><span class="live-dot"></span> Online</span></div><div id="chat-messages" class="chat-messages"><div class="bubble agent"><b>Hi {{username}} 👋</b><br>Ask me about stocks, valuation, technical indicators or investing concepts. I'll explain them in simple language.</div></div><form class="chat-input" onsubmit="sendQuestion(event)"><input id="agent-input" autocomplete="off" placeholder="Ask: What does RSI tell me?"><button class="btn-primary" type="submit"><i class="fa-solid fa-paper-plane"></i></button></form></section></section>{% endblock %}{% block scripts %}<script>function addBubble(text,who){const box=document.getElementById('chat-messages');const div=document.createElement('div');div.className='bubble '+who;div.innerHTML=text.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>');box.appendChild(div);box.scrollTop=box.scrollHeight;}function ask(q){document.getElementById('agent-input').value=q;sendQuestion(new Event('submit'));}function sendQuestion(e){e.preventDefault();const input=document.getElementById('agent-input');const q=input.value.trim();if(!q)return;addBubble(q,'user');input.value='';addBubble('<span class="typing"><i></i><i></i><i></i></span>','agent typing-bubble');const typing=document.querySelector('.typing-bubble');fetch('/api/agent',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:q})}).then(r=>r.json()).then(d=>{typing.remove();addBubble(d.answer||'I could not find that lesson yet.','agent');}).catch(()=>{typing.remove();addBubble('Something went wrong. Please try again.','agent');});}</script>{% endblock %}
+{% extends 'base.html' %}
+
+{% block title %}Learning Agent | Stock Analyzer{% endblock %}
+
+{% block content %}
+
+<section class="agent-page">
+
+    <div class="agent-header">
+
+        <div>
+            <span class="section-kicker">STOCK LEARNING AGENT</span>
+
+            <h1>
+                Ask without the
+                <span class="gradient-text">jargon.</span>
+            </h1>
+
+            <p>
+                Learn stocks, investing, trading and financial concepts
+                through simple explanations and examples.
+            </p>
+        </div>
+
+    </div>
+
+
+    <div class="agent-layout">
+
+        <!-- SIDEBAR -->
+
+        <aside class="agent-sidebar">
+
+            <div class="sidebar-title">
+                Explore concepts
+            </div>
+
+            <button onclick="askSuggested('What is a stock?')">
+                📈 Stocks
+            </button>
+
+            <button onclick="askSuggested('What is fundamental analysis?')">
+                🔎 Fundamental Analysis
+            </button>
+
+            <button onclick="askSuggested('What is P/E ratio?')">
+                💰 Valuation
+            </button>
+
+            <button onclick="askSuggested('What is a candlestick?')">
+                📊 Technical Analysis
+            </button>
+
+            <button onclick="askSuggested('What is an ETF?')">
+                🏦 Investing
+            </button>
+
+            <button onclick="askSuggested('What is a stop loss?')">
+                ⚡ Trading
+            </button>
+
+
+            <div class="sidebar-divider"></div>
+
+
+            <div class="sidebar-title">
+                Popular questions
+            </div>
+
+            <button onclick="askSuggested('Why do stock prices change?')">
+                Why do stock prices change?
+            </button>
+
+            <button onclick="askSuggested('What is market capitalization?')">
+                What is market capitalization?
+            </button>
+
+            <button onclick="askSuggested('What is EPS?')">
+                What is EPS?
+            </button>
+
+            <button onclick="askSuggested('Is a low P/E always better?')">
+                Is a low P/E always better?
+            </button>
+
+        </aside>
+
+
+        <!-- CHAT -->
+
+        <main class="agent-chat">
+
+            <div
+                id="chatMessages"
+                class="chat-messages">
+
+                <div class="welcome-message">
+
+                    <div class="agent-avatar">
+                        ✦
+                    </div>
+
+                    <div>
+
+                        <h2>
+                            Hi! I'm your Stock Learning Agent.
+                        </h2>
+
+                        <p>
+                            Ask me anything about stocks,
+                            investing, trading or market concepts.
+                        </p>
+
+                        <div class="suggestions">
+
+                            <button onclick="askSuggested('What is a stock?')">
+                                What is a stock?
+                            </button>
+
+                            <button onclick="askSuggested('Explain P/E ratio with an example')">
+                                Explain P/E ratio
+                            </button>
+
+                            <button onclick="askSuggested('How do I analyze a company?')">
+                                How do I analyze a company?
+                            </button>
+
+                            <button onclick="askSuggested('What is RSI?')">
+                                What is RSI?
+                            </button>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div class="typing" id="typing">
+                Agent is thinking...
+            </div>
+
+
+            <div class="chat-input-area">
+
+                <textarea
+                    id="question"
+                    placeholder="Ask something like: What is EPS?"
+                    rows="1"
+                    onkeydown="handleKey(event)"
+                ></textarea>
+
+                <button
+                    id="askButton"
+                    onclick="askAgent()">
+
+                    Ask →
+                    
+                </button>
+
+            </div>
+
+            <div class="input-hint">
+                Press Enter to ask · Shift + Enter for a new line
+            </div>
+
+        </main>
+
+    </div>
+
+</section>
+
+
+<style>
+
+.agent-page {
+    max-width: 1250px;
+    margin: auto;
+    padding-bottom: 60px;
+}
+
+
+.agent-header {
+    margin-bottom: 35px;
+}
+
+
+.agent-header h1 {
+    font-size: clamp(44px, 6vw, 72px);
+    margin: 8px 0;
+}
+
+
+.agent-header p {
+    color: #8996aa;
+    font-size: 17px;
+    max-width: 700px;
+    line-height: 1.6;
+}
+
+
+.gradient-text {
+    background: linear-gradient(
+        90deg,
+        #19d3ae,
+        #60a5fa,
+        #8b5cf6
+    );
+
+    -webkit-background-clip: text;
+    background-clip: text;
+
+    color: transparent;
+}
+
+
+.agent-layout {
+    display: grid;
+    grid-template-columns: 270px 1fr;
+    gap: 20px;
+}
+
+
+/* SIDEBAR */
+
+.agent-sidebar {
+    background: rgba(16,25,42,0.72);
+
+    border: 1px solid rgba(255,255,255,0.07);
+
+    border-radius: 20px;
+
+    padding: 20px;
+
+    height: fit-content;
+}
+
+
+.sidebar-title {
+    color: #75839a;
+
+    font-size: 11px;
+
+    font-weight: 800;
+
+    text-transform: uppercase;
+
+    letter-spacing: 1px;
+
+    margin-bottom: 10px;
+}
+
+
+.agent-sidebar button {
+    width: 100%;
+
+    text-align: left;
+
+    border: none;
+
+    background: transparent;
+
+    color: #b7c2d4;
+
+    padding: 11px;
+
+    border-radius: 9px;
+
+    cursor: pointer;
+
+    margin-bottom: 3px;
+
+    transition: 0.2s;
+
+    font-size: 13px;
+}
+
+
+.agent-sidebar button:hover {
+    background: rgba(255,255,255,0.06);
+
+    color: white;
+
+    transform: translateX(2px);
+}
+
+
+.sidebar-divider {
+    height: 1px;
+
+    background: rgba(255,255,255,0.06);
+
+    margin: 20px 0;
+}
+
+
+/* CHAT */
+
+.agent-chat {
+    min-height: 650px;
+
+    display: flex;
+
+    flex-direction: column;
+
+    background: rgba(16,25,42,0.72);
+
+    border: 1px solid rgba(255,255,255,0.07);
+
+    border-radius: 20px;
+
+    overflow: hidden;
+}
+
+
+.chat-messages {
+    flex: 1;
+
+    padding: 30px;
+
+    overflow-y: auto;
+}
+
+
+.welcome-message {
+    display: flex;
+
+    gap: 18px;
+
+    max-width: 750px;
+}
+
+
+.agent-avatar {
+    min-width: 44px;
+
+    height: 44px;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    border-radius: 14px;
+
+    background: linear-gradient(
+        135deg,
+        #13c99a,
+        #60a5fa
+    );
+
+    color: #06120f;
+
+    font-size: 21px;
+
+    font-weight: 900;
+}
+
+
+.welcome-message h2 {
+    margin: 0 0 8px;
+
+    font-size: 23px;
+}
+
+
+.welcome-message p {
+    color: #8c99ad;
+
+    line-height: 1.6;
+}
+
+
+.suggestions {
+    display: flex;
+
+    flex-wrap: wrap;
+
+    gap: 8px;
+
+    margin-top: 20px;
+}
+
+
+.suggestions button {
+    background: #101a2a;
+
+    border: 1px solid rgba(255,255,255,0.08);
+
+    color: #b9c4d5;
+
+    padding: 9px 12px;
+
+    border-radius: 9px;
+
+    cursor: pointer;
+
+    transition: 0.2s;
+}
+
+
+.suggestions button:hover {
+    border-color: #13c99a;
+
+    color: #13c99a;
+}
+
+
+/* MESSAGES */
+
+.user-message,
+.agent-message {
+    display: flex;
+
+    gap: 14px;
+
+    margin-bottom: 25px;
+
+    animation: messageIn 0.25s ease;
+}
+
+
+@keyframes messageIn {
+
+    from {
+        opacity: 0;
+
+        transform: translateY(8px);
+    }
+
+    to {
+        opacity: 1;
+
+        transform: translateY(0);
+    }
+
+}
+
+
+.user-message {
+    justify-content: flex-end;
+}
+
+
+.user-bubble {
+    max-width: 75%;
+
+    padding: 13px 16px;
+
+    border-radius: 16px 16px 4px 16px;
+
+    background: #13c99a;
+
+    color: #04110d;
+
+    line-height: 1.5;
+}
+
+
+.agent-bubble {
+    max-width: 80%;
+
+    padding: 20px;
+
+    border-radius: 4px 16px 16px 16px;
+
+    background: #111c2d;
+
+    border: 1px solid rgba(255,255,255,0.06);
+
+    color: #d6deeb;
+
+    line-height: 1.65;
+}
+
+
+.agent-bubble h3 {
+    color: white;
+
+    margin-top: 0;
+}
+
+
+.agent-bubble strong {
+    color: #19d3ae;
+}
+
+
+.agent-bubble code {
+    background: #08101d;
+
+    padding: 3px 7px;
+
+    border-radius: 5px;
+
+    color: #60a5fa;
+}
+
+
+.related {
+    display: flex;
+
+    flex-wrap: wrap;
+
+    gap: 7px;
+
+    margin-top: 18px;
+}
+
+
+.related button {
+    background: rgba(19,201,154,0.08);
+
+    border: 1px solid rgba(19,201,154,0.2);
+
+    color: #19d3ae;
+
+    padding: 7px 10px;
+
+    border-radius: 8px;
+
+    cursor: pointer;
+
+    font-size: 12px;
+}
+
+
+.typing {
+    display: none;
+
+    padding: 0 30px 12px;
+
+    color: #69778e;
+
+    font-size: 12px;
+}
+
+
+/* INPUT */
+
+.chat-input-area {
+    display: flex;
+
+    gap: 10px;
+
+    padding: 18px;
+
+    border-top: 1px solid rgba(255,255,255,0.07);
+
+    background: #0d1625;
+}
+
+
+.chat-input-area textarea {
+    flex: 1;
+
+    resize: none;
+
+    border: 1px solid rgba(255,255,255,0.08);
+
+    border-radius: 12px;
+
+    background: #09111f;
+
+    color: white;
+
+    padding: 14px;
+
+    outline: none;
+
+    font-family: inherit;
+
+    font-size: 14px;
+}
+
+
+.chat-input-area textarea:focus {
+    border-color: #13c99a;
+}
+
+
+.chat-input-area button {
+    align-self: stretch;
+
+    border: none;
+
+    border-radius: 12px;
+
+    padding: 0 22px;
+
+    background: #13c99a;
+
+    color: #04110d;
+
+    font-weight: 800;
+
+    cursor: pointer;
+}
+
+
+.input-hint {
+    padding: 0 18px 14px;
+
+    background: #0d1625;
+
+    color: #536177;
+
+    font-size: 11px;
+
+    text-align: right;
+}
+
+
+@media (max-width: 850px) {
+
+    .agent-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .agent-sidebar {
+        display: none;
+    }
+
+    .agent-chat {
+        min-height: 600px;
+    }
+
+}
+
+</style>
+
+
+<script>
+
+function askSuggested(question) {
+
+    document.getElementById("question").value = question;
+
+    askAgent();
+
+}
+
+
+function handleKey(event) {
+
+    if (
+        event.key === "Enter" &&
+        !event.shiftKey
+    ) {
+
+        event.preventDefault();
+
+        askAgent();
+
+    }
+
+}
+
+
+function addUserMessage(question) {
+
+    const container =
+        document.getElementById("chatMessages");
+
+
+    const message =
+        document.createElement("div");
+
+
+    message.className =
+        "user-message";
+
+
+    message.innerHTML = `
+        <div class="user-bubble">
+            ${escapeHtml(question)}
+        </div>
+    `;
+
+
+    container.appendChild(message);
+
+    container.scrollTop =
+        container.scrollHeight;
+
+}
+
+
+function addAgentMessage(data) {
+
+    const container =
+        document.getElementById("chatMessages");
+
+
+    const message =
+        document.createElement("div");
+
+
+    message.className =
+        "agent-message";
+
+
+    let related = "";
+
+
+    if (
+        data.related &&
+        data.related.length
+    ) {
+
+        related = `
+            <div class="related">
+
+                ${data.related.map(
+                    item => `
+                        <button
+                            onclick="askSuggested('${escapeAttribute(item)}')">
+                            ${escapeHtml(item)}
+                        </button>
+                    `
+                ).join("")}
+
+            </div>
+        `;
+
+    }
+
+
+    message.innerHTML = `
+        <div class="agent-avatar">✦</div>
+
+        <div class="agent-bubble">
+
+            ${formatAnswer(data.answer)}
+
+            ${related}
+
+        </div>
+    `;
+
+
+    container.appendChild(message);
+
+    container.scrollTop =
+        container.scrollHeight;
+
+}
+
+
+async function askAgent() {
+
+    const input =
+        document.getElementById("question");
+
+
+    const question =
+        input.value.trim();
+
+
+    if (!question) {
+        return;
+    }
+
+
+    const button =
+        document.getElementById("askButton");
+
+
+    const typing =
+        document.getElementById("typing");
+
+
+    addUserMessage(question);
+
+
+    input.value = "";
+
+
+    button.disabled = true;
+
+    button.innerText = "...";
+
+
+    typing.style.display = "block";
+
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/agent",
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body: JSON.stringify({
+                        question: question
+                    })
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            addAgentMessage({
+                answer:
+                    data.error ||
+                    "I couldn't process that question.",
+                related: []
+            });
+
+            return;
+        }
+
+
+        addAgentMessage(data);
+
+
+    } catch (error) {
+
+        addAgentMessage({
+
+            answer:
+                "I couldn't connect to the learning agent. Please try again.",
+
+            related: []
+
+        });
+
+    } finally {
+
+        typing.style.display = "none";
+
+        button.disabled = false;
+
+        button.innerText = "Ask →";
+
+    }
+
+}
+
+
+function formatAnswer(text) {
+
+    let html =
+        escapeHtml(text);
+
+
+    html =
+        html.replace(
+            /\*\*(.*?)\*\*/g,
+            "<strong>$1</strong>"
+        );
+
+
+    html =
+        html.replace(
+            /`([^`]+)`/g,
+            "<code>$1</code>"
+        );
+
+
+    html =
+        html.replace(
+            /\n/g,
+            "<br>"
+        );
+
+
+    return html;
+
+}
+
+
+function escapeHtml(text) {
+
+    const div =
+        document.createElement("div");
+
+    div.innerText = text;
+
+    return div.innerHTML;
+
+}
+
+
+function escapeAttribute(text) {
+
+    return text
+        .replace(/\\/g, "\\\\")
+        .replace(/'/g, "\\'");
+
+}
+
+</script>
+
+{% endblock %}
