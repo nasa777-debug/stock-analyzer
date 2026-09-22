@@ -1,4 +1,5 @@
 import os
+from agent_knowledge import answer_question
 from decimal import Decimal
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash
 from database import db, User, Transaction, Holding
@@ -308,6 +309,40 @@ def get_transactions():
     if not user: return jsonify({'error':'Unauthorized'}),401
     return jsonify([tx.to_dict() for tx in Transaction.query.filter_by(user_id=user.id).order_by(Transaction.timestamp.desc()).all()])
 
+@app.route("/api/agent", methods=["POST"])
+def agent_api():
+    if "user_id" not in session:
+        return jsonify({"error": "Please log in to use the learning agent."}), 401
+
+    data = request.get_json(silent=True) or {}
+
+    question = str(data.get("question", "")).strip()
+
+    if not question:
+        return jsonify({
+            "error": "Please enter a question."
+        }), 400
+
+    if len(question) > 1000:
+        return jsonify({
+            "error": "Please keep your question under 1000 characters."
+        }), 400
+
+    try:
+        result = answer_question(question)
+
+        return jsonify({
+            "answer": result.get("answer", ""),
+            "related": result.get("related", [])
+        })
+
+    except Exception as e:
+        print("Agent error:", e)
+
+        return jsonify({
+            "error": "The learning agent encountered an error. Please try again."
+        }), 500
+        
 @app.route("/trade")
 def trade():
     if "user_id" not in session:
